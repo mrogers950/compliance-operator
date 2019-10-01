@@ -66,11 +66,17 @@ func schema_pkg_apis_openscap_v1alpha1_OpenScapSpec(ref common.ReferenceCallback
 			SchemaProps: spec.SchemaProps{
 				Description: "OpenScapSpec defines the desired state of OpenScap",
 				Properties: map[string]spec.Schema{
-					"rule": {
+					"profile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"rule": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"content": {

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,7 +51,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("openscap-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: 2})
+	c, err := controller.New("openscap-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -64,6 +65,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner OpenScap
 	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &openscapv1alpha1.OpenScap{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// The controller would create a PVC so that the pods can later mount a volume
+	err = c.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &openscapv1alpha1.OpenScap{},
 	})
@@ -133,9 +143,36 @@ func (r *ReconcileOpenScap) Reconcile(request reconcile.Request) (reconcile.Resu
 func (r *ReconcileOpenScap) phasePendingHandler(instance *openscapv1alpha1.OpenScap, logger logr.Logger) (reconcile.Result, error) {
 	logger.Info("Phase: Pending", "OpenScap scan", instance.ObjectMeta.Name)
 
-	// Update the scan instance, the next phase is running
+	// Check if the PVC we need is already created
+	pvc := newPvc(instance, logger)
+	if err := controllerutil.SetControllerReference(instance, pvc, r.scheme); err != nil {
+		// requeue with error
+		return reconcile.Result{}, err
+	}
+	found := &corev1.PersistentVolumeClaim{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: pvc.Name, Namespace: pvc.Namespace}, found)
+	// Try to see if the pvc already exists and if not
+	// (which we expect) then create a one-shot pvc as per spec:
+	if err != nil && errors.IsNotFound(err) {
+		err = r.client.Create(context.TODO(), pvc)
+		if err != nil {
+			// requeue with error
+			return reconcile.Result{}, err
+		}
+		logger.Info("PVC created", "name", pvc.Name)
+	} else if err != nil {
+		// requeue with error
+		return reconcile.Result{}, err
+	} else if found.Status.Phase != corev1.ClaimPending && found.Status.Phase != corev1.ClaimBound {
+		// other status, just requeue and wait for updates
+		logger.Info("PVC reconciling", "status", found.Status.Phase)
+		return reconcile.Result{}, nil
+	}
+
+	// Now the claim is either Pending or Bound (can it be bound already?), move to the next phase
+	logger.Info("PVC ready, moving to the launching phase")
 	instance.Status.Phase = openscapv1alpha1.PhaseLaunching
-	err := r.client.Status().Update(context.TODO(), instance)
+	err = r.client.Status().Update(context.TODO(), instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -307,6 +344,10 @@ func newPodForNode(openScapCr *openscapv1alpha1.OpenScap, node *corev1.Node, log
 							Name:      "host",
 							MountPath: "/host",
 						},
+						corev1.VolumeMount{
+							Name:      "scanresults",
+							MountPath: "/scanresults",
+						},
 					},
 				},
 			},
@@ -319,6 +360,15 @@ func newPodForNode(openScapCr *openscapv1alpha1.OpenScap, node *corev1.Node, log
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: "/",
 							Type: &hostPathDir,
+						},
+					},
+				},
+				corev1.Volume{
+					Name: "scanresults",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							// TODO: don't duplicate the creation of the name
+							ClaimName: "pvc-" + openScapCr.Name,
 						},
 					},
 				},
@@ -377,4 +427,26 @@ func createOscapCommand(scanSpec *openscapv1alpha1.OpenScapSpec, logger logr.Log
 
 	logger.Info("Resulting command", "command", cmd.String())
 	return cmd.String()
+}
+
+func newPvc(openScapCr *openscapv1alpha1.OpenScap, logger logr.Logger) *corev1.PersistentVolumeClaim {
+	pvcName := "pvc-" + openScapCr.Name
+
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pvcName,
+			Namespace: openScapCr.Namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteMany,
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					// FIXME: make configurable?
+					corev1.ResourceStorage: resource.MustParse("1Gi"),
+				},
+			},
+		},
+	}
 }
