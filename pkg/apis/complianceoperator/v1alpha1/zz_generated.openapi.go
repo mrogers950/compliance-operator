@@ -11,9 +11,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScan":       schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScan(ref),
-		"github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScanSpec":   schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScanSpec(ref),
-		"github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScanStatus": schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScanStatus(ref),
+		"./pkg/apis/complianceoperator/v1alpha1.ComplianceScan":       schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScan(ref),
+		"./pkg/apis/complianceoperator/v1alpha1.ComplianceScanSpec":   schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScanSpec(ref),
+		"./pkg/apis/complianceoperator/v1alpha1.ComplianceScanStatus": schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScanStatus(ref),
 	}
 }
 
@@ -22,6 +22,7 @@ func schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScan(ref common.Refer
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ComplianceScan is the Schema for the compliancescans API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -44,19 +45,19 @@ func schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScan(ref common.Refer
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScanSpec"),
+							Ref: ref("./pkg/apis/complianceoperator/v1alpha1.ComplianceScanSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScanStatus"),
+							Ref: ref("./pkg/apis/complianceoperator/v1alpha1.ComplianceScanStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScanSpec", "github.com/jhrozek/compliance-operator/pkg/apis/complianceoperator/v1alpha1.ComplianceScanStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/complianceoperator/v1alpha1.ComplianceScanSpec", "./pkg/apis/complianceoperator/v1alpha1.ComplianceScanStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -65,10 +66,50 @@ func schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScanSpec(ref common.R
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ComplianceScanSpec defines the desired state of ComplianceScan",
-				Properties:  map[string]spec.Schema{},
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"contentImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"profile": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"rule": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"content": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"nodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -77,9 +118,17 @@ func schema_pkg_apis_complianceoperator_v1alpha1_ComplianceScanStatus(ref common
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ComplianceScanStatus defines the observed state of ComplianceScan",
-				Properties:  map[string]spec.Schema{},
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
